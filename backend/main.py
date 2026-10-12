@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from services.analise import main, buscar_linhas
 
-app = FastAPI(title="Template Dataset API")
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -10,7 +11,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/")
 def raiz():
@@ -22,5 +22,18 @@ def saude():
     return {"status": "ok"}
 
 @app.post("/api/executar")
-def executar():
-    return {"mensagem": "Arquivo aberto com sucesso"}
+async def executar(
+        arquivo: UploadFile = File(...),
+        metodo: str = Form(...),
+        teste: float = Form(0.2),
+        parametros: UploadFile | None = File(None),
+    ):    
+    resultado = main(arquivo, metodo, parametros, teste)
+    return resultado
+
+@app.get("/api/dataset/{dataset_id}")
+def carregar_mais(dataset_id: str, offset: int = 0, limit: int = 50):
+    resposta = buscar_linhas(dataset_id, offset, limit)
+    if resposta is None:
+        raise HTTPException(status_code=404, detail="Dataset expirado. Envie o arquivo novamente.")
+    return resposta
