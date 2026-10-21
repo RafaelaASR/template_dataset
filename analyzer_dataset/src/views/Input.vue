@@ -14,25 +14,81 @@ const status = ref('idle')
 const arquivo = ref(null)
 const method = ref('gradient_boosting');
 
+
+
+
+
+
+
+
+
+// ********************************************
+// APENAS remova '//' da frente do seu método
+// ********************************************
 const methods = [
   { label: 'Gradient Boosting', value: 'gradient_boosting' },
-  { label: 'Lasso', value: 'lasso' },
-  { label: 'Bagging', value: 'bagging' },
-  { label: 'SVR', value: 'svr' },
-  { label: 'Huber Regressor', value: 'huber_regressor' },
-  { label: 'KNN', value: 'knn' },
-  { label: 'Extra Trees', value: 'extra_trees' },
-  { label: 'Ridge', value: 'ridge' },
-  { label: 'SGD Regressor', value: 'sgd_regressor' },
-  { label: 'Bayesian Ridge', value: 'bayesian_ridge' },
-  { label: 'Decision Tree', value: 'decision_tree' },
-  { label: 'Regressão Linear', value: 'regressao_linear' },
-  { label: 'HistGradientBoosting', value: 'hist_gradient_boosting' },
-  { label: 'Kernel Ridge', value: 'kernel_ridge' },
-  { label: 'AdaBoost', value: 'adaboost' },
-  { label: 'Elastic Net', value: 'elastic_net' },
-  { label: 'Random Forest', value: 'random_forest' },
+  //{ label: 'Lasso', value: 'lasso' },
+  //{ label: 'Bagging', value: 'bagging' },
+  //{ label: 'SVR', value: 'svr' },
+  //{ label: 'Huber Regressor', value: 'huber_regressor' },
+  //{ label: 'KNN', value: 'knn' },
+  //{ label: 'Extra Trees', value: 'extra_trees' },
+  //{ label: 'Ridge', value: 'ridge' },
+  //{ label: 'SGD Regressor', value: 'sgd_regressor' },
+  //{ label: 'Bayesian Ridge', value: 'bayesian_ridge' },
+  //{ label: 'Decision Tree', value: 'decision_tree' },
+  //{ label: 'Regressão Linear', value: 'regressao_linear' },
+  //{ label: 'HistGradientBoosting', value: 'hist_gradient_boosting' },
+  //{ label: 'Kernel Ridge', value: 'kernel_ridge' },
+  //{ label: 'AdaBoost', value: 'adaboost' },
+  //{ label: 'Elastic Net', value: 'elastic_net' },
+  //{ label: 'Random Forest', value: 'random_forest' },
 ];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 async function executar() {
   if (!arquivo.value) return
@@ -111,7 +167,7 @@ async function executar() {
 
       <v-file-upload v-if="custom" 
         v-model="parametros"
-        accept=".txt, .arff"
+        accept=".txt"
         density="compact" 
         variant="compact"
         hide-browse

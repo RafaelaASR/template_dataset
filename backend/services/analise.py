@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import uuid
-
+import metodos as m
 from sklearn import metrics as me
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
@@ -23,10 +23,17 @@ def ler_arquivo(arquivo):
 
     return atributos, target, df, indice_alvo
 
+def converter(v):
+    v = v.strip()
+    try:
+        return int(v)
+    except ValueError:
+        return float(v)
+
 def ler_parametros(parametros):
-    parametros = parametros.split(",")
-    parametros = [float(p) for p in parametros]
-    return parametros
+    texto = parametros.file.read().decode("utf-8-sig").strip()
+    valores = texto.replace("\n", ",").replace("\r", "").split(",")
+    return [converter(v) for v in valores if v.strip() != ""]
 
 def metricas(texto,y_teste,y_pred):
     mae = me.mean_absolute_error(y_teste, y_pred)
@@ -46,16 +53,24 @@ def metricas(texto,y_teste,y_pred):
         "mse": round(float(mse), 4),
         "rmse": round(float(rmse), 4),
         "r2": round(float(r2), 4),
-    }]
+    }]    
 
+# -----------------------------------------------
+# MÉTODOS 
+# -----------------------------------------------
 
-def gradient_boosting_treino(x_train, y_train):
+def gradient_boosting_treino(x_train, y_train, parametros=None):
+    p = [300, 0.1, 4, 0.8, 10]
+    
+    if parametros:
+        p = list(parametros) + p[len(parametros):]
+    
     gb_model = GradientBoostingRegressor(
-        n_estimators=300,
-        learning_rate=0.1,
-        max_depth=4,
-        subsample=0.8,
-        min_samples_leaf=10,
+        n_estimators=p[0],
+        learning_rate=p[1],
+        max_depth=p[2],
+        subsample=p[3],
+        min_samples_leaf=p[4],
     )
 
     gb_model.fit(x_train, y_train)
@@ -64,12 +79,13 @@ def gradient_boosting_treino(x_train, y_train):
 def gradient_boosting_teste(x_teste, y_teste, gb_model):
     y_pred = gb_model.predict(x_teste)
     return metricas("GRADIENT BOOSTING", y_teste, y_pred)
-    
 
 # =============================================================
 # MÉTODO PRINCIPAL
 # =============================================================
 def main(arq: str, metodo: str, parametros: str, test: float):
+    parametros = ler_parametros(parametros) if parametros and parametros.filename else None
+
     feat, target, df, indice_alvo = ler_arquivo(arq)
 
     dataset_id = str(uuid.uuid4())
@@ -83,12 +99,8 @@ def main(arq: str, metodo: str, parametros: str, test: float):
         .values.tolist()
     )
 
-    if parametros:
-        parametros = ler_parametros(parametros)
-        x_treino, x_teste, y_treino, y_teste = train_test_split(parametros, target, test)
-
     x_treino, x_teste, y_treino, y_teste = train_test_split(
-        feat,target,test_size=0.2,random_state=42
+        feat, target, test_size=test, random_state=42
     )
 
     scaler = StandardScaler()
@@ -98,7 +110,7 @@ def main(arq: str, metodo: str, parametros: str, test: float):
     resultados = []
 
     if metodo == "gradient_boosting":
-        modelo = gradient_boosting_treino(x_treino_sc,y_treino)
+        modelo = gradient_boosting_treino(x_treino_sc,y_treino, parametros)
         retorno = gradient_boosting_teste(x_teste_sc,y_teste,modelo)
 
         resultados.extend(retorno)
