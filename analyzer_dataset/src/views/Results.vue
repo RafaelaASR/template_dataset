@@ -4,7 +4,8 @@ import AnalysisLoading from './AnalysisLoading.vue'
 
 const props = defineProps({ 
   resultado: Object, 
-  isLoading: Boolean 
+  isLoading: Boolean,
+  methods: Object
 })
 
 const aba = ref('dataset')
@@ -12,42 +13,62 @@ const page = ref(1)
 const porPagina = 50
 const linhas = ref([])
 const carregandoPagina = ref(false)
+const resultadosHistorico = ref([])
 
 const totalPaginas = computed(() =>
   Math.max(1, Math.ceil((props.resultado?.registros ?? 0) / porPagina))
 )
 
 const colunasResultado = computed(() => {
-  const primeiro = props.resultado?.resultados?.[0]
+  const primeiro = resultadosHistorico.value[0]
   return primeiro ? Object.keys(primeiro) : []
 })
 
+const method = ref(null)
+
 watch(
-  () => props.resultado?.dataset_id,
-  () => {
-    page.value = 1
-    linhas.value = [...(props.resultado?.dadosDataset ?? [])]
+  () => props.resultado?.resultados,
+  (novos) => {
+    if (!novos) return
+
+    resultadosHistorico.value = [...novos]
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
+  [page, () => props.resultado?.dataset_id],
+  async ([nova, datasetId]) => {
+    if (!datasetId || !props.resultado) return
+
+    carregandoPagina.value = true
+
+    try {
+      const offset = (nova - 1) * porPagina
+
+      if (nova === 1) {
+        linhas.value = props.resultado.dadosDataset ?? []
+        return
+      }
+
+      const resp = await fetch(
+        `http://localhost:8000/api/dataset/${datasetId}?offset=${offset}&limit=${porPagina}`
+      )
+
+      if (!resp.ok) {
+        throw new Error((await resp.json()).detail)
+      }
+
+      const data = await resp.json()
+      linhas.value = data.linhas
+    } catch (e) {
+      console.error('Erro ao carregar página:', e)
+    } finally {
+      carregandoPagina.value = false
+    }
   },
   { immediate: true }
 )
-
-watch(page, async (nova) => {
-  if (!props.resultado?.dataset_id) return
-  carregandoPagina.value = true
-  try {
-    const offset = (nova - 1) * porPagina
-    const resp = await fetch(
-      `http://localhost:8000/dataset/${props.resultado?.dataset_id}?offset=${offset}&limit=${porPagina}`
-    )
-    if (!resp.ok) throw new Error((await resp.json()).detail)
-    const data = await resp.json()
-    linhas.value = data.linhas
-  } catch (e) {
-    console.error(e)
-  } finally {
-    carregandoPagina.value = false
-  }
-})
 </script>
 
 <template>
@@ -67,6 +88,20 @@ watch(page, async (nova) => {
           <p class="text-caption text-medium-emphasis">Teste</p>
           <p class="text-h5 font-weight-bold mt-2">{{ Math.round(resultado?.teste * 100) }}%</p>
       </div>
+    </div>
+    <div v-if="aba == 'resultados'" class="d-flex">
+      <v-text-field label="Buscar método" variant="outlined"></v-text-field>
+      <v-select
+        v-model="method"
+        :items="methods"
+        item-title="label"
+        item-value="value"
+        placeholder="Selecione um método"
+        variant="outlined"
+        density="compact"
+        hide-details
+        class="my-6 custom-width"
+      />
     </div>
     <VTabs v-model="aba" color="#861da2" height="36" class="px-4 pb-0 flex-grow-0">
       <VTab value="dataset" text="Dataset" prepend-icon="mdi-database" />

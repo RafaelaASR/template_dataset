@@ -218,13 +218,7 @@ async function executar() {
         >
         Executar
       </v-btn>
-      <v-btn block 
-        height="44" 
-        prepend-icon="mdi-compare-horizontal"
-        class="text-none mt-4 btn-analise"  
-        @click="comparison = true">
-        Análise comparativa
-      </v-btn>
+    
 
     <p v-if="error" role="alert" class="text-body-2 mt-4">{{ error }}</p>
 

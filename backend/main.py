@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from services.analise import main, buscar_linhas
 
+
 app = FastAPI()
 
 app.add_middleware(

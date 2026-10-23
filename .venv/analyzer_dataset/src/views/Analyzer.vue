@@ -6,11 +6,11 @@ import Results from './Results.vue';
 <template>
     <div class="d-flex">
         <div class="">
-            <Input />
+            <Input/>
         </div>
 
         <div class="">
-            <Results />
+            <Results :methods="" />
         </div>
     </div>
 </template>
