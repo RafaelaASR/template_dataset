@@ -15,3 +15,8 @@ export async function executarAnalise(arquivo, metodo, parametros, teste) {
   console.log("data", data)
   return data
 }
+
+export async function buscarHistorico() {
+  const { data } = await http.get('/api/historico')
+  return data.resultados
+}

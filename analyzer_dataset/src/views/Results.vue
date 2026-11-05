@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted,watch } from 'vue'
 import AnalysisLoading from './AnalysisLoading.vue'
+import { buscarHistorico } from '@/api'
 
 const props = defineProps({ 
   resultado: Object, 
@@ -24,7 +25,21 @@ const colunasResultado = computed(() => {
   return primeiro ? Object.keys(primeiro) : []
 })
 
+const mostrarVazio = computed(() =>
+  aba.value === 'dataset'
+    ? !props.resultado
+    : resultadosHistorico.value.length === 0
+)
+
 const method = ref(null)
+
+onMounted(async () => {
+  try {
+    resultadosHistorico.value = await buscarHistorico()
+  } catch (e) {
+    console.error(e)
+  }
+})
 
 watch(
   () => props.resultado?.resultados,
@@ -89,7 +104,7 @@ watch(
           <p class="text-h5 font-weight-bold mt-2">{{ Math.round(resultado?.teste * 100) }}%</p>
       </div>
     </div>
-    <div v-if="aba == 'resultados'" class="d-flex">
+    <div v-if="aba == 'resultados' && resultado > 0" class="d-flex">
       <v-text-field label="Buscar método" variant="outlined"></v-text-field>
       <v-select
         v-model="method"
@@ -110,7 +125,7 @@ watch(
 
     <AnalysisLoading v-if="isLoading" :aba="aba" class="flex-grow-1" style="min-height: 0" />
     
-    <div v-else-if="isLoading == false && (!props.resultado || props.resultado?.length === 0)"
+    <div v-else-if="mostrarVazio"
       class="empty-area d-flex flex-column align-center text-center flex-grow-1 py-12"
     >
       <div class="empty-illustration" aria-hidden="true">
@@ -196,8 +211,8 @@ watch(
 
           <tbody>
             <tr
-              v-for="(r, index) in resultado?.resultados ?? []"
-              :key="r.modelo ?? index"
+              v-for="(r, index) in resultadosHistorico"
+              :key="index"
             >
               <td v-for="chave in colunasResultado" :key="chave">
                 {{ r[chave] ?? '—' }}

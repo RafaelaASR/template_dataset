@@ -102,7 +102,7 @@ async function executar() {
     const dados = await executarAnalise(
       arquivo.value,
       method.value,
-      parametros.value,
+      custom.value ? parametros.value : null,
       test.value / 100,
     )
 

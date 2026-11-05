@@ -1,3 +1,5 @@
+import json
+import os
 import hashlib
 import threading
 import pandas as pd
@@ -6,8 +8,34 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 CACHE = {}
-HISTORICO = {}
 TRAVA = threading.Lock()
+ARQUIVO_HISTORICO = os.environ.get("HISTORICO_PATH", "data/historico.json")
+
+
+def _carregar():
+    try:
+        with open(ARQUIVO_HISTORICO, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _json_seguro(o):
+    # converte np.float64, np.int64 etc. para tipos nativos
+    return o.item() if hasattr(o, "item") else str(o)
+
+
+def _salvar():
+    pasta = os.path.dirname(ARQUIVO_HISTORICO)
+    if pasta:
+        os.makedirs(pasta, exist_ok=True)
+    tmp = ARQUIVO_HISTORICO + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(HISTORICO, f, ensure_ascii=False, default=_json_seguro)
+    os.replace(tmp, ARQUIVO_HISTORICO)
+
+
+HISTORICO = _carregar()
 
 def ler_arquivo(arquivo):
     indice_alvo = int(float(pd.read_csv(arquivo.file, header=None, nrows=1).iloc[0, 0])) - 1
@@ -29,31 +57,24 @@ def converter(v):
 def ler_parametros(parametros):
     texto = parametros.file.read().decode("utf-8-sig").strip()
     valores = texto.replace("\n", ",").replace("\r", "").split(",")
+
+    print("texto", texto)
     return [converter(v) for v in valores if v.strip() != ""]
 
 def como_lista(r):
     if isinstance(r, tuple):
         r = r[0]
+    print(f"como_lista: {type(r)}")
     return [r] if isinstance(r, dict) else list(r)
 
-def registrar(dataset_id, linhas):
-    chave = lambda r: (
-        r["modelo"],
-        r.get("versao", "Padrão"),
-        r.get("parametros", "padrão")
-    )
 
+def registrar(linhas, nome_arquivo):
     with TRAVA:
-        hist = HISTORICO.setdefault(dataset_id, [])
-
         for nova in linhas:
-            hist[:] = [
-                r for r in hist
-                if chave(r) != chave(nova)
-            ]
-            hist.append(nova)
-
-        return list(hist)
+            nova["arquivo"] = nome_arquivo
+            HISTORICO.append(nova)
+        _salvar()
+        return list(HISTORICO)
 
 # =============================================================
 # MÉTODO PRINCIPAL
@@ -106,7 +127,7 @@ def main(arq, metodo, parametros, test):
         )
         novas.append(linha)
 
-    historico = registrar(dataset_id, novas)
+    historico = registrar(novas, arq.filename)
 
     return {
         "dataset_id": dataset_id,
@@ -128,3 +149,7 @@ def buscar_linhas(dataset_id: str, offset: int, limit: int):
     parte = df.iloc[offset:offset + limit].round(4)
     linhas = parte.astype(object).where(parte.notna(), None).values.tolist()
     return {"linhas": linhas, "total": int(len(df))}
+
+def buscar_historico():
+    with TRAVA:
+        return list(HISTORICO)

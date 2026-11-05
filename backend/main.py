@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from services.analise import main, buscar_linhas
+from services.analise import main, buscar_linhas, buscar_historico
 
 
 app = FastAPI()
@@ -38,3 +38,7 @@ def carregar_mais(dataset_id: str, offset: int = 0, limit: int = 50):
     if resposta is None:
         raise HTTPException(status_code=404, detail="Dataset expirado. Envie o arquivo novamente.")
     return resposta
+
+@app.get("/api/historico")
+def historico():
+    return {"resultados": buscar_historico()}
