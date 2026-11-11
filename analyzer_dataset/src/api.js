@@ -20,3 +20,8 @@ export async function buscarHistorico() {
   const { data } = await http.get('/api/historico')
   return data.resultados
 }
+
+export async function limparHistorico() {
+  const { data } = await http.delete('/api/historico')
+  return data.resultados
+}

@@ -1,7 +1,9 @@
-import json
 import os
+import math
+import json
 import hashlib
 import threading
+import numpy as np
 import pandas as pd
 from services import metodos as me
 from sklearn.model_selection import train_test_split
@@ -11,6 +13,15 @@ CACHE = {}
 TRAVA = threading.Lock()
 ARQUIVO_HISTORICO = os.environ.get("HISTORICO_PATH", "data/historico.json")
 
+def _limpar(v):
+    if hasattr(v, "item"):
+        v = v.item()
+    if isinstance(v, float) and not math.isfinite(v):
+        return None
+    return v
+
+def _historico_limpo():
+    return [{k: _limpar(v) for k, v in r.items()} for r in HISTORICO]
 
 def _carregar():
     try:
@@ -21,7 +32,6 @@ def _carregar():
 
 
 def _json_seguro(o):
-    # converte np.float64, np.int64 etc. para tipos nativos
     return o.item() if hasattr(o, "item") else str(o)
 
 
@@ -42,17 +52,38 @@ def ler_arquivo(arquivo):
     arquivo.file.seek(0)
 
     df = pd.read_csv(arquivo.file, header=1)
-    atributos = df.drop(columns=df.columns[indice_alvo]).astype(float).values
-    target = df.iloc[:, indice_alvo].astype(float).values
+
+    atributos_df = df.drop(columns=df.columns[indice_alvo])
+    atributos = pd.get_dummies(atributos_df, dtype=int).astype(float).values
+
+    target = df.iloc[:, indice_alvo]
+
+    if pd.api.types.is_numeric_dtype(target):
+        target = target.values
+    else:
+        target = target.astype("category").cat.codes.values
 
     return atributos, target, df, indice_alvo
 
 def converter(v):
     v = v.strip()
+    baixo = v.lower()
+
+    if baixo == "true":
+        return True
+    if baixo == "false":
+        return False
+
     try:
         return int(v)
     except ValueError:
+        pass
+    try:
         return float(v)
+    except ValueError:
+        pass
+
+    return v
 
 def ler_parametros(parametros):
     texto = parametros.file.read().decode("utf-8-sig").strip()
@@ -74,7 +105,7 @@ def registrar(linhas, nome_arquivo):
             nova["arquivo"] = nome_arquivo
             HISTORICO.append(nova)
         _salvar()
-        return list(HISTORICO)
+        return _historico_limpo()
 
 # =============================================================
 # MÉTODO PRINCIPAL
@@ -117,8 +148,8 @@ def main(arq, metodo, parametros, test):
     novas = []
 
     for linha in como_lista(retorno):
-        linha = dict(linha)
-        linha["modelo"] = metodo
+        linha = {k: _limpar(v) for k, v in dict(linha).items()}
+        linha["metodo"] = metodo
         linha["versao"] = (
             "Personalizada" if parametros is not None else "Padrão"
         )
@@ -136,7 +167,7 @@ def main(arq, metodo, parametros, test):
         "registros": int(len(feat)),
         "colunas": int(feat.shape[1] + 1),
         "teste": test,
-        "metodo": metodo,
+        "método": metodo,
         "colunas_nomes": [str(c) for c in df.columns],
         "dadosDataset": dados_dataset,
         "resultados": historico,
@@ -152,4 +183,9 @@ def buscar_linhas(dataset_id: str, offset: int, limit: int):
 
 def buscar_historico():
     with TRAVA:
-        return list(HISTORICO)
+        return _historico_limpo()
+
+def limpar_historico():
+    with TRAVA:
+        HISTORICO.clear()
+        _salvar()

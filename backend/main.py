@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from services.analise import main, buscar_linhas, buscar_historico
+from services.analise import main, buscar_linhas, buscar_historico, limpar_historico
 
 
 app = FastAPI()
@@ -42,3 +42,8 @@ def carregar_mais(dataset_id: str, offset: int = 0, limit: int = 50):
 @app.get("/api/historico")
 def historico():
     return {"resultados": buscar_historico()}
+
+@app.delete("/api/historico")
+def apagar_historico():
+    limpar_historico()
+    return {"resultados": []}

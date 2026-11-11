@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, onMounted,watch } from 'vue'
 import AnalysisLoading from './AnalysisLoading.vue'
-import { buscarHistorico } from '@/api'
+import { buscarHistorico, limparHistorico } from '@/api'
+import { methods } from '@/methods'
 
 const props = defineProps({ 
   resultado: Object, 
   isLoading: Boolean,
-  methods: Object
+  methods: Array
 })
 
 const aba = ref('dataset')
@@ -15,6 +16,22 @@ const porPagina = 50
 const linhas = ref([])
 const carregandoPagina = ref(false)
 const resultadosHistorico = ref([])
+const filtroBuscar = ref('')
+
+const CHAVE_METODO = 'metodo'
+
+const normalizar = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const resultadosFiltrados = computed(() => {
+  if (!filtroBuscar.value) return resultadosHistorico.value
+
+  const sel = methods.find(m => m.value === filtroBuscar.value)
+  const aceitos = [sel?.value, sel?.label].filter(Boolean).map(normalizar)
+
+  return resultadosHistorico.value.filter(r =>
+    Object.values(r).some(v => aceitos.includes(normalizar(v)))
+  )
+})
 
 const totalPaginas = computed(() =>
   Math.max(1, Math.ceil((props.resultado?.registros ?? 0) / porPagina))
@@ -31,7 +48,27 @@ const mostrarVazio = computed(() =>
     : resultadosHistorico.value.length === 0
 )
 
+const confirmarLimpeza = ref(false)
+const limpando = ref(false)
+
+async function limpar() {
+  limpando.value = true
+  try {
+    await limparHistorico()
+    resultadosHistorico.value = []
+    confirmarLimpeza.value = false
+    emit('historico-limpo')
+  } catch (e) {
+    console.error('Erro ao limpar histórico:', e)
+  } finally {
+    limpando.value = false
+  }
+}
+
 const method = ref(null)
+
+const emit = defineEmits(['historico-limpo'])
+emit('historico-limpo')
 
 onMounted(async () => {
   try {
@@ -103,20 +140,6 @@ watch(
           <p class="text-caption text-medium-emphasis">Teste</p>
           <p class="text-h5 font-weight-bold mt-2">{{ Math.round(resultado?.teste * 100) }}%</p>
       </div>
-    </div>
-    <div v-if="aba == 'resultados' && resultado > 0" class="d-flex">
-      <v-text-field label="Buscar método" variant="outlined"></v-text-field>
-      <v-select
-        v-model="method"
-        :items="methods"
-        item-title="label"
-        item-value="value"
-        placeholder="Selecione um método"
-        variant="outlined"
-        density="compact"
-        hide-details
-        class="my-6 custom-width"
-      />
     </div>
     <VTabs v-model="aba" color="#861da2" height="36" class="px-4 pb-0 flex-grow-0">
       <VTab value="dataset" text="Dataset" prepend-icon="mdi-database" />
@@ -200,7 +223,32 @@ watch(
       </VTabsWindowItem>
         
       <VTabsWindowItem value="resultados" class="pa-4">
-        <v-table density="compact" class="border rounded">
+        <div class="d-flex justify-end search-area">
+          <v-select
+            v-model="filtroBuscar"
+            :items="methods"
+            item-title="label"
+            item-value="value"
+            placeholder="Buscar por método"
+            variant="outlined"
+            density="compact"
+            hide-details
+            clearable
+            class="custom-width mr-3"
+          />
+          <pre>{{ props.methods }}</pre>
+          <v-btn
+            color="red"
+            variant="outlined"
+            prepend-icon="mdi-delete-outline"
+            class="text-none btn-limpar"
+            :disabled="!resultadosHistorico.length"
+            @click="confirmarLimpeza = true"
+          >
+            Limpar histórico
+          </v-btn>
+        </div>
+        <v-table density="compact" class="border rounded" height="400px" fixed-header>
           <thead>
             <tr>
               <th v-for="chave in colunasResultado" :key="chave">
@@ -210,12 +258,14 @@ watch(
           </thead>
 
           <tbody>
-            <tr
-              v-for="(r, index) in resultadosHistorico"
-              :key="index"
-            >
+            <tr v-for="(r, index) in resultadosFiltrados" :key="index">
               <td v-for="chave in colunasResultado" :key="chave">
                 {{ r[chave] ?? '—' }}
+              </td>
+            </tr>
+            <tr v-if="resultadosFiltrados.length === 0">
+              <td :colspan="colunasResultado.length || 1" class="text-center text-medium-emphasis">
+                Nenhum resultado para esse método
               </td>
             </tr>
           </tbody>
@@ -223,12 +273,39 @@ watch(
       </VTabsWindowItem>
     </VTabsWindow>
   </div>
+  <v-dialog class="dialog" v-model="confirmarLimpeza" max-width="400">
+    <v-card class="custom-card" title="Limpar histórico" text="Tem certeza que deseja limpar o histórico? Isso apagará todos os resultados salvos das análises e essa ação não poderá ser desfeita.">
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Cancelar" @click="confirmarLimpeza = false" />
+        <v-btn color="red" text="Limpar" :loading="limpando" @click="limpar" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
+.custom-card{
+  box-shadow: none;;
+}
+
+.btn-limpar{
+  margin-top: 2px;
+}
+
+.dialog{
+  border-radius: 8px;
+}
+
 .loading{
   position: relative;
   width: 100%;
+}
+
+.search-area{
+  gap: 15px;
+  margin-bottom: 15px;
 }
 
 .result-content {
